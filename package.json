@@ -1,0 +1,25 @@
+{
+  "name": "chrome-puppeteer-automation",
+  "version": "1.0.0",
+  "description": "A Chrome browser automation project using Puppeteer",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Gaurav",
+  "license": "MIT",
+  "dependencies": {
+    "puppeteer": "3.0.2",
+    "shelljs": "0.8.4",
+    "yargs": "15.3.1"
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gauravmahto/chrome-puppeteer-automation.git"
+  },
+  "bugs": {
+    "url": "https://github.com/gauravmahto/chrome-puppeteer-automation/issues"
+  },
+  "homepage": "https://github.com/gauravmahto/chrome-puppeteer-automation#readme"
+}
