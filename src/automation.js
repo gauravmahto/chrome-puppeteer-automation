@@ -50,7 +50,16 @@ module.exports.startAutomation = async function startAutomation() {
     const screenCaptureUpdatedPath = join(SCREEN_CAPTURE_OUTPUT_DIR, argv.screenCapturePath);
     shell.mkdir('-p', screenCaptureUpdatedPath);
 
-    startScreenCapturing(cdpSession, screenCaptureUpdatedPath);
+    try {
+
+      startScreenCapturing(cdpSession, screenCaptureUpdatedPath);
+
+    } catch (err) {
+
+      logger.error(`Screen capturing not supported. ${err}.` +
+        `Make sure that you have downloaded FFMPEG encoder and is available to the system's path.` +
+        `For more info refer: https://www.ffmpeg.org/download.html and https://en.wikibooks.org/wiki/FFMPEG_An_Intermediate_Guide`);
+    }
 
   }
 
@@ -159,6 +168,11 @@ async function resizeGame(page) {
 
 }
 
+/**
+ * For more info refer:
+ * 1) https://www.ffmpeg.org/download.html
+ * 2) https://en.wikibooks.org/wiki/FFMPEG_An_Intermediate_Guide
+ */
 function startScreenCapturing(cdpSession, path) {
 
   let imageSeq = 0;
