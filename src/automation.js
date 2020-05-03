@@ -59,6 +59,7 @@ module.exports.startAutomation = async function startAutomation() {
       logger.error(`Screen capturing not supported. ${err}.` +
         `Make sure that you have downloaded FFMPEG encoder and is available to the system's path.` +
         `For more info refer: https://www.ffmpeg.org/download.html and https://en.wikibooks.org/wiki/FFMPEG_An_Intermediate_Guide`);
+
     }
 
   }
@@ -66,6 +67,7 @@ module.exports.startAutomation = async function startAutomation() {
   logger.info(await getHeapStatus(cdpSession, true));
 
   let attempt = 0;
+  let failedAttempt = 0;
   while (++attempt < MAX_RESIZE_ATTEMPT) {
 
     try {
@@ -78,7 +80,7 @@ module.exports.startAutomation = async function startAutomation() {
 
     } catch (err) {
 
-      logger.error(`Attempt: ${attempt}. Error: ${err}`);
+      logger.error(`Attempt: ${((--attempt) + (++failedAttempt))}. Error: ${err}`);
 
     }
 
