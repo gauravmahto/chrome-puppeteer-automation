@@ -46,7 +46,9 @@ const writeFile = promisify(wf);
 
 const DEFAULT_DATA_DIR = 'C:\\Users\\GM103015\\AppData\\Local\\Google\\Chrome\\temp user data';
 const DEFAULT_URL = 'file:///C:/Users/GM103015/AppData/Local/Google/Chrome/temp%20user%20data/aristocrat-iframe/launchgame.htm';
-const OUTPUT_DIR = join(__dirname, 'snapshots', utility.getDate(), Date.now().toString());
+const OUTPUT_DIR = join(__dirname, 'bin', utility.getDate(), Date.now().toString());
+const SNAPSHOTS_OUTPUT_DIR = join(OUTPUT_DIR, 'snapshots');
+const SCREEN_CAPTURE_OUTPUT_DIR = join(OUTPUT_DIR, 'screen-capture');
 const MIN_HEIGHT = 200;
 const MAX_HEIGHT = 768;
 const MIN_WIDTH = 400;
@@ -54,10 +56,12 @@ const MAX_WIDTH = 1024;
 const MAX_RESIZE_ATTEMPT = 200;
 
 const argv = cliOptions();
-// Create the output folder
-shell.mkdir('-p', OUTPUT_DIR);
+// Create the snapshot output folder
+shell.mkdir('-p', SNAPSHOTS_OUTPUT_DIR);
+// Create the screen capture output folder
+shell.mkdir('-p', SCREEN_CAPTURE_OUTPUT_DIR);
 
-utility.clearOutputDir(OUTPUT_DIR);
+utility.clearOutputDir(SNAPSHOTS_OUTPUT_DIR);
 
 (async () => {
 
@@ -79,6 +83,15 @@ utility.clearOutputDir(OUTPUT_DIR);
   let snapshotNumber = 0;
   const cdpSession = await page.target().createCDPSession();
   await takeSnapshot(`Heap${++snapshotNumber}.heapsnapshot`, cdpSession);
+
+  if (argv.screenCapturePath) {
+
+    const screenCaptureUpdatedPath = join(SCREEN_CAPTURE_OUTPUT_DIR, argv.screenCapturePath);
+    shell.mkdir('-p', screenCaptureUpdatedPath);
+
+    startScreenCapturing(cdpSession, screenCaptureUpdatedPath);
+
+  }
 
   console.log(await getHeapStatus(cdpSession, true));
 
@@ -109,16 +122,10 @@ utility.clearOutputDir(OUTPUT_DIR);
 /**
  * @returns {Promise}
  */
-async function waitForInitialGameLoad(page) {
+function waitForInitialGameLoad(page) {
 
-  await page.mainFrame()
+  return page.mainFrame()
     .waitForSelector('div#loadingElement', { hidden: true });
-
-  if (typeof argv.dataDir === 'undefined') {
-    await waitForResizeToStart(page);
-
-    await waitForResizeGameLoad(page);
-  }
 
 }
 
@@ -191,6 +198,21 @@ async function resizeGame(page) {
 
 }
 
+function startScreenCapturing(cdpSession, path) {
+
+  let imageSeq = 0;
+
+  cdpSession.on('Page.screencastFrame', ({ data }) => {
+    writeFile(join(path, `capture-${++imageSeq}.png`), Buffer.from(data, 'base64'));
+  });
+
+  cdpSession.send('Page.startScreencast', {
+    format: 'png',
+    quality: 15
+  });
+
+}
+
 /**
  * @returns {Promise<{usedSize: number, totalSize: number}>}
  */
@@ -203,7 +225,7 @@ async function getHeapStatus(cdpSession, writeToFile) {
 
   if (writeToFile) {
 
-    writeFile(join(OUTPUT_DIR, 'heap-status.txt'), (JSON.stringify(heapStats) + EOL), { flag: 'a' });
+    writeFile(join(SNAPSHOTS_OUTPUT_DIR, 'heap-status.txt'), (JSON.stringify(heapStats) + EOL), { flag: 'a' });
 
   }
 
@@ -226,7 +248,7 @@ async function takeSnapshot(fileName, cdpSession) {
 
   cdpSession.off('HeapProfiler.addHeapSnapshotChunk', addHeapSnapshotChunkhandler);
 
-  return writeFile(join(OUTPUT_DIR, fileName), snapShotData, { flag: 'w' });
+  return writeFile(join(SNAPSHOTS_OUTPUT_DIR, fileName), snapShotData, { flag: 'w' });
 
 }
 
@@ -234,10 +256,39 @@ function cliOptions() {
 
   return yargs
     .usage('Usages: $0 -url="https://www.google.com"')
-    .command('--url', 'The URL to open')
-    .command('--data-dir', 'The user data directory')
-    .default('url', DEFAULT_URL)
-    .default('data-dir', DEFAULT_DATA_DIR)
+    .options({
+      '--url': {
+        description: 'The URL to open',
+        alias: 'U',
+        type: 'string',
+        default: DEFAULT_URL,
+        requiresArg: true
+      },
+      '--data-dir': {
+        description: 'The user data directory',
+        alias: 'D',
+        type: 'string',
+        default: DEFAULT_DATA_DIR,
+        requiresArg: true
+      },
+      '--screen-capture-path': {
+        description: 'Use screen capture',
+        alias: 'S',
+        type: 'string',
+        default: '',
+        requiresArg: true,
+        normalize: true
+      }
+    })
+    // .option('--screen-capture', {
+    //   description: 'Use screen capture',
+    //   alias: 'S',
+    //   type: 'boolean',
+    //   default: false,
+    //   requiresArg: true,
+    //   demandOption: true,
+    //   normalize: true
+    // })
     .option('greet', {
       alias: 'g',
       description: 'Prints the greeting',
