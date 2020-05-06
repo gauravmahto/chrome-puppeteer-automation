@@ -36,9 +36,9 @@ module.exports.startAutomation = async function startAutomation() {
   const mainPage = await browser.newPage();
   let page;
 
-  if (argv.targetRemote) {
+  if (typeof argv.targetRemote !== 'undefined') {
 
-    page = await openRemotePage(browser, mainPage);
+    page = await openRemotePage(browser, mainPage, argv.targetRemote);
 
   } else {
 
@@ -146,14 +146,17 @@ module.exports.startAutomation = async function startAutomation() {
 
 };
 
-async function openRemotePage(browser, page) {
+async function openRemotePage(browser, page, remote) {
 
-  const { HomePage } = require('./private-page-objects/page-objects/winnabunch/homepage');
+  const {
+    DEFAULT_USERNAME, DEFAULT_PASSWORD,
+    DEFAULT_REMOTE, HomePage
+  } = require('./private-page-objects/page-objects/winnabunch/homepage');
 
-  const homePage = new HomePage(page, browser, 'http://igs-int.aristocrat-b2b.com');
+  const homePage = new HomePage(page, browser, (remote || DEFAULT_REMOTE));
 
   await homePage.open();
-  await homePage.login('gauravm', '4h$P1xoIK2PD');
+  await homePage.login(DEFAULT_USERNAME, DEFAULT_PASSWORD);
 
   return homePage.openGamePage();
 
@@ -327,8 +330,7 @@ function cliOptions() {
       '--target-remote': {
         description: 'Use remote environment',
         alias: 'R',
-        type: 'boolean',
-        default: false
+        type: 'string'
       }
     })
     .option('greet', {
