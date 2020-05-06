@@ -26,15 +26,26 @@ clearOutputDir(SNAPSHOTS_OUTPUT_DIR);
 
 module.exports.startAutomation = async function startAutomation() {
 
-  const browser = await puppeteer.launch({
+  let browser = await puppeteer.launch({
     executablePath: 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
     userDataDir: argv.dataDir,
     headless: false,   // default is true
     defaultViewport: { height: 768, width: 1024 }
   });
 
-  const page = await browser.newPage();
-  await page.goto(argv.url);
+  const mainPage = await browser.newPage();
+  let page;
+
+  if (argv.targetRemote) {
+
+    page = await openRemotePage(browser, mainPage);
+
+  } else {
+
+    await mainPage.goto(argv.url);
+    page = mainPage;
+
+  }
 
   await waitForInitialGameLoad(page);
 
@@ -42,7 +53,46 @@ module.exports.startAutomation = async function startAutomation() {
   logger.info('Dimensions:', dimensions);
 
   let snapshotNumber = 0;
-  const cdpSession = await page.target().createCDPSession();
+  let cdpSession = await page.target().createCDPSession();
+
+  const cleanup = async () => {
+
+    logger.info('Performing cleanup.');
+
+    if (null !== cdpSession) {
+
+      try {
+
+        await cdpSession.detach();
+
+      } catch (error) {
+
+        logger.error(`Fatal error: ${error}`);
+
+      }
+
+      cdpSession = null;
+
+    }
+
+    if (null !== browser) {
+
+      try {
+
+        await browser.close();
+
+      } catch (error) {
+
+        logger.error(`Fatal error: ${error}`);
+
+      }
+
+      browser = null;
+
+    }
+
+  };
+
   await takeSnapshot(`Heap${++snapshotNumber}.heapsnapshot`, cdpSession);
 
   if (argv.screenCapturePath) {
@@ -80,16 +130,34 @@ module.exports.startAutomation = async function startAutomation() {
 
     } catch (err) {
 
+      if (err.message.includes('Target closed')) {
+
+        return cleanup;
+
+      }
+
       logger.error(`Attempt: ${((--attempt) + (++failedAttempt))}. Error: ${err}`);
 
     }
 
   }
 
-  await cdpSession.detach();
-  await browser.close();
+  return cleanup;
 
 };
+
+async function openRemotePage(browser, page) {
+
+  const { HomePage } = require('./private-page-objects/page-objects/winnabunch/homepage');
+
+  const homePage = new HomePage(page, browser, 'http://igs-int.aristocrat-b2b.com');
+
+  await homePage.open();
+  await homePage.login('gauravm', '4h$P1xoIK2PD');
+
+  return homePage.openGamePage();
+
+}
 
 /**
  * @returns {Promise}
@@ -255,6 +323,12 @@ function cliOptions() {
         default: '',
         requiresArg: true,
         normalize: true
+      },
+      '--target-remote': {
+        description: 'Use remote environment',
+        alias: 'R',
+        type: 'boolean',
+        default: false
       }
     })
     .option('greet', {

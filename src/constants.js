@@ -14,3 +14,5 @@ module.exports.MAX_HEIGHT = 768;
 module.exports.MIN_WIDTH = 400;
 module.exports.MAX_WIDTH = 1024;
 module.exports.MAX_RESIZE_ATTEMPT = 200;
+
+module.exports.INVALID_SEQUENCE = 1001;

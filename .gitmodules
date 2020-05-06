@@ -1,0 +1,3 @@
+[submodule "src/private-page-objects"]
+	path = src/private-page-objects
+	url = git@github.com-p:gauravmahto/private-page-objects.git

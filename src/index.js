@@ -1,3 +1,14 @@
 const { startAutomation } = require('./automation');
+const { logger } = require('./logger');
 
-startAutomation();
+startAutomation()
+  .then((cleanupFn) => {
+
+    return cleanupFn();
+
+  })
+  .catch((error) => {
+
+    logger.error(`FATAL error: ${error}`);
+
+  });
