@@ -1,5 +1,5 @@
 const { writeFile: wf } = require('fs');
-const { promisify } = require('util');
+const { promisify, inspect } = require('util');
 const { join } = require('path');
 const { EOL } = require('os');
 
@@ -24,13 +24,24 @@ shell.mkdir('-p', SCREEN_CAPTURE_OUTPUT_DIR);
 
 clearOutputDir(SNAPSHOTS_OUTPUT_DIR);
 
+// $0.contentWindow.loneStar.Game.trigger(99)
+// -94, -34
+// let b = new MouseEvent('mousedown', {
+//   bubbles: true,
+//   cancelable: true,
+//   view: $0.contentWindow,
+//   clientX: 1111,
+//   clientY: 720
+//   })
+
 module.exports.startAutomation = async function startAutomation() {
 
   let browser = await puppeteer.launch({
     executablePath: 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
     userDataDir: argv.dataDir,
     headless: false,   // default is true
-    defaultViewport: { height: 768, width: 1024 }
+    defaultViewport: { height: 768, width: 1024 },
+    args: [ '--disable-features=site-per-process' ]
   });
 
   const mainPage = await browser.newPage();
@@ -47,10 +58,12 @@ module.exports.startAutomation = async function startAutomation() {
 
   }
 
-  await waitForInitialGameLoad(page);
+  let windcreekFrame = page.frames().find(frame => frame.url() === 'https://windcreekcasinotest.com/game/1000');
+
+  // await waitForInitialGameLoad(windcreekFrame || page.mainFrame());
 
   const dimensions = await getPageDimension(page);
-  logger.info('Dimensions:', dimensions);
+  logger.info(`Initial dimensions: ${inspect(dimensions)}`);
 
   let snapshotNumber = 0;
   let cdpSession = await page.target().createCDPSession();
@@ -123,8 +136,50 @@ module.exports.startAutomation = async function startAutomation() {
     try {
 
       await resizeGame(page);
+      // await page.waitForNavigation({
+      //   waitUntil: 'networkidle2'
+      // });
+      await page.waitFor(5000);
+      // await page.waitForFunction(
+      //   `document.querySelector('iframe.game-frame') !== null`
+      // );
+      // await page.waitForFunction(
+      //   `document.querySelector('iframe.game-frame').contentDocument.querySelector('iframe') !== null`
+      // );
+      // await page.waitForFunction(
+      //   `console.log(document.querySelector('iframe.game-frame').contentDocument.querySelector('iframe'))`
+      // );
+      // await waitForGameToResize(windcreekFrame || page.mainFrame());
 
-      await takeSnapshot(`Heap${++snapshotNumber}.heapsnapshot`, cdpSession);
+      // New
+      const dimensions = await getPageDimension(page);
+
+      // const frameElementHandle = await page.$('iframe');
+      // const frame = await frameElementHandle.contentFrame();
+      // const canvasElement = await frame.$('canvas');
+      // const canvasBoundingBox = await canvasElement.boundingBox();
+
+      // const frameElementHandle = await page.$('iframe.game-frame');
+      // const frame = await frameElementHandle.contentFrame();
+      // const frameElementHandle2 = await frame.$('iframe');
+      // const frame2 = await frameElementHandle2.contentFrame();
+
+      // const canvasElement = await frame2.$('canvas');
+      // const canvasBoundingBox = await canvasElement.boundingBox();
+
+      // const clickCoordinates = {
+      //   x: (canvasBoundingBox.width) - 84,
+      //   y: (canvasBoundingBox.height) - 34
+      // };
+      // await page.mouse.click(clickCoordinates.x, clickCoordinates.y);
+      // await page.waitFor(5000);
+      // await page.mouse.click(clickCoordinates.x, clickCoordinates.y);
+
+      // New
+
+      // await takeSnapshot(`Heap${++snapshotNumber}.heapsnapshot`, cdpSession);
+
+      logger.info(`Updated dimensions for snapshot #${snapshotNumber}: ${inspect(dimensions)}`);
 
       logger.info(await getHeapStatus(cdpSession, true));
 
@@ -148,10 +203,15 @@ module.exports.startAutomation = async function startAutomation() {
 
 async function openRemotePage(browser, page, remote) {
 
+  // const {
+  //   DEFAULT_USERNAME, DEFAULT_PASSWORD,
+  //   DEFAULT_REMOTE, HomePage
+  // } = require('./private-page-objects/page-objects/winnabunch/homepage');
+
   const {
     DEFAULT_USERNAME, DEFAULT_PASSWORD,
     DEFAULT_REMOTE, HomePage
-  } = require('./private-page-objects/page-objects/winnabunch/homepage');
+  } = require('./private-page-objects/page-objects/windcreek/homepage');
 
   const homePage = new HomePage(page, browser, (remote || DEFAULT_REMOTE));
 
@@ -162,33 +222,29 @@ async function openRemotePage(browser, page, remote) {
 
 }
 
-/**
- * @returns {Promise}
- */
-function waitForInitialGameLoad(page) {
+async function waitForInitialGameLoad(frame) {
 
-  return page.mainFrame()
-    .waitForSelector('div#loadingElement', { hidden: true });
+  await frame.waitForSelector('div#loadingElement');
+
+  return frame.waitForSelector('div#loadingElement', { hidden: true });
 
 }
 
 /**
  * @returns {Promise}
  */
-function waitForResizeToStart(page) {
+function waitForResizeToStart(frame) {
 
-  return page.mainFrame()
-    .waitForSelector('div#resizingGameMessage');
+  return frame.waitForSelector('div#resizingGameMessage');
 
 }
 
 /**
  * @returns {Promise}
  */
-function waitForResizeGameLoad(page) {
+function waitForResizeGameLoad(frame) {
 
-  return page.mainFrame()
-    .waitForSelector('div#resizingGameMessage', { hidden: true });
+  return frame.waitForSelector('div#resizingGameMessage', { hidden: true });
 
 }
 
@@ -235,9 +291,13 @@ async function resizeGame(page) {
 
   await page.setViewport({ height: newDimensions.height, width: newDimensions.width });
 
-  await waitForResizeToStart(page);
+}
 
-  await waitForResizeGameLoad(page);
+async function waitForGameToResize(frame) {
+
+  await waitForResizeToStart(frame);
+
+  await waitForResizeGameLoad(frame);
 
 }
 
