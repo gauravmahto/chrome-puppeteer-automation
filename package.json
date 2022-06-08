@@ -10,7 +10,7 @@
   "license": "MIT",
   "dependencies": {
     "puppeteer": "3.0.2",
-    "shelljs": "0.8.4",
+    "shelljs": "0.8.5",
     "winston": "3.2.1",
     "yargs": "15.3.1"
   },
